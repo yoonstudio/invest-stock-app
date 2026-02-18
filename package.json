@@ -1,0 +1,45 @@
+{
+  "name": "investment-mcp",
+  "version": "1.0.0",
+  "description": "투자 관련 MCP 서버 - 주식 가격, 포트폴리오 분석, 뉴스, 환율 조회",
+  "main": "dist/index.js",
+  "bin": {
+    "investment-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:server": "tsc -p server/tsconfig.json",
+    "start": "node dist/index.js",
+    "start:server": "node dist-server/server/index.js",
+    "dev": "ts-node src/index.ts",
+    "dev:server": "npx tsx --env-file=.env server/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "investment",
+    "stock",
+    "portfolio"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
+    "@mrbaeksang/korea-stock-analyzer-mcp": "^1.1.1",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "korea-stock-mcp": "^1.1.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.2.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
