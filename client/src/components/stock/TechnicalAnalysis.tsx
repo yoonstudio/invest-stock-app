@@ -197,6 +197,48 @@ export function TechnicalAnalysis({ symbol }: TechnicalAnalysisProps) {
           </div>
         )}
 
+        {/* Volatility */}
+        {(data as Record<string, unknown>).volatility && (() => {
+          const v = (data as Record<string, unknown>).volatility as Record<string, number>;
+          return (
+            <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">변동성 & 리스크</p>
+              <div className="grid grid-cols-2 gap-2">
+                {v.daily !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">일 변동성</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatNumber(v.daily)}%</span>
+                  </div>
+                )}
+                {v.annual !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">연 변동성</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatNumber(v.annual)}%</span>
+                  </div>
+                )}
+                {v.sharpeRatio !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">샤프비율</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatNumber(v.sharpeRatio)}</span>
+                  </div>
+                )}
+                {v.maxDrawdown !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">최대낙폭</span>
+                    <span className="text-sm font-medium text-red-500">{formatNumber(v.maxDrawdown)}%</span>
+                  </div>
+                )}
+                {v.beta !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-xs text-gray-500">베타</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">{formatNumber(v.beta)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Summary */}
         {data.summary && (
           <p className="text-sm text-gray-600 dark:text-gray-400 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

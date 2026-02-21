@@ -10,7 +10,6 @@ import { StockChart } from '@/components/stock/StockChart';
 import { StockInfo } from '@/components/stock/StockInfo';
 import { StockNews } from '@/components/stock/StockNews';
 import { TechnicalAnalysis } from '@/components/stock/TechnicalAnalysis';
-import { FinancialMetrics } from '@/components/stock/FinancialMetrics';
 import { EquityAnalysis } from '@/components/stock/EquityAnalysis';
 import { SupplyDemand } from '@/components/stock/SupplyDemand';
 import { getStockPrice } from '@/lib/api';
@@ -25,12 +24,11 @@ import {
   isKoreanStock,
 } from '@/lib/utils';
 
-type TabKey = 'overview' | 'technical' | 'financial' | 'supply' | 'guru' | 'news';
+type TabKey = 'overview' | 'technical' | 'supply' | 'guru' | 'news';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'technical', label: 'Technical' },
-  { key: 'financial', label: 'Financial' },
   { key: 'supply', label: 'Supply/Demand' },
   { key: 'guru', label: 'Guru Analysis' },
   { key: 'news', label: 'News' },
@@ -223,12 +221,6 @@ export default function StockDetailPage() {
         {activeTab === 'technical' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <TechnicalAnalysis symbol={symbol} />
-          </div>
-        )}
-
-        {activeTab === 'financial' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <FinancialMetrics symbol={symbol} />
           </div>
         )}
 

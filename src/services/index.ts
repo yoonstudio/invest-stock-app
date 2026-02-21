@@ -58,3 +58,19 @@ export {
   comparePeers,
   analyzeEquity,
 } from './mcpAnalyzerService.js';
+
+// Recommendation Screening Service
+export {
+  getRecommendedStocks,
+  invalidateRecommendationCache,
+  DEFAULT_CRITERIA,
+  AVAILABLE_COUNTRIES,
+  SECTOR_GROUPS,
+  ALL_SECTORS,
+} from './recommendationService.js';
+export type {
+  RecommendedStock,
+  ScreeningCriteria,
+  CountryMeta,
+  SectorGroup,
+} from './recommendationService.js';

@@ -38,7 +38,10 @@ import {
   getMarketIndices,
   getStockChart,
   searchStocks,
+  getRecommendedStocks,
+  DEFAULT_CRITERIA,
 } from '../src/services/index.js';
+import type { ScreeningCriteria } from '../src/services/index.js';
 
 import { errorToResponse, successResponse, ValidationError } from '../src/shared/errors/index.js';
 import { logger, LogLevel } from '../src/shared/logger/index.js';
@@ -158,6 +161,58 @@ app.get('/api/stocks/search', async (req, res) => {
   }
 });
 
+// NOTE: /recommend must be declared BEFORE /:symbol to avoid param route capturing it
+app.get('/api/stocks/recommend', async (req, res) => {
+  try {
+    // Parse limit
+    const rawLimit = req.query.limit;
+    let limit = 10;
+    if (typeof rawLimit === 'string') {
+      const parsed = parseInt(rawLimit, 10);
+      if (isNaN(parsed) || parsed < 1) {
+        res.status(400).json(errorToResponse(new ValidationError('limit must be a positive integer')));
+        return;
+      }
+      limit = Math.min(parsed, 20);
+    }
+
+    // Parse optional screening criteria (fall back to defaults)
+    const parseNum = (key: string, def: number, min: number, max: number): number => {
+      const v = req.query[key];
+      if (typeof v !== 'string') return def;
+      const n = parseFloat(v);
+      return isNaN(n) ? def : Math.min(Math.max(n, min), max);
+    };
+    const parseBool = (key: string, def: boolean): boolean => {
+      const v = req.query[key];
+      if (typeof v !== 'string') return def;
+      return v === 'true' || v === '1';
+    };
+
+    const parseList = (key: string): string[] => {
+      const v = req.query[key];
+      if (typeof v !== 'string' || v.trim() === '') return [];
+      return v.split(',').map((s) => s.trim()).filter(Boolean);
+    };
+
+    const criteria: ScreeningCriteria = {
+      roeMin:       parseNum('roe',  DEFAULT_CRITERIA.roeMin,       0,   500),
+      perRatioMax:  parseNum('per',  DEFAULT_CRITERIA.perRatioMax,  1,   200),
+      pbrRatioMax:  parseNum('pbr',  DEFAULT_CRITERIA.pbrRatioMax,  1,   200),
+      epsMin:       parseNum('eps',  DEFAULT_CRITERIA.epsMin,       -100, 500),
+      requireMoat:  parseBool('moat', DEFAULT_CRITERIA.requireMoat),
+      countries:    parseList('countries'),
+      sectors:      parseList('sectors'),
+    };
+
+    const result = await getRecommendedStocks(limit, criteria);
+    res.json(successResponse(result));
+  } catch (error) {
+    log.error('Failed to generate stock recommendations', error as Error);
+    res.status(500).json(errorToResponse(error as Error));
+  }
+});
+
 app.get('/api/stocks/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
@@ -247,7 +302,51 @@ app.get('/api/stocks/:symbol/chart', async (req, res) => {
 app.get('/api/stocks/:symbol/technical', async (req, res) => {
   try {
     const { symbol } = req.params;
-    const data = await getTechnicalIndicators(symbol);
+    const raw = await getTechnicalIndicators(symbol) as Record<string, number>;
+
+    const rsi = raw.rsi14 ?? raw.rsi;
+    const macdVal = raw.macd;
+    const macdSig = raw.macdSignal ?? raw.signal;
+    const macdHist = raw.macdHistogram ?? raw.histogram;
+
+    let signal = 'Neutral';
+    if (macdHist !== undefined) {
+      if (rsi > 70 && macdHist < 0) signal = 'Bearish';
+      else if (rsi < 30 && macdHist > 0) signal = 'Bullish';
+      else if (macdHist > 0) signal = 'Bullish';
+      else if (macdHist < 0) signal = 'Bearish';
+    }
+
+    const data = {
+      rsi,
+      rsiSignal: rsi > 70 ? 'Overbought' : rsi < 30 ? 'Oversold' : 'Neutral',
+      macd: macdVal !== undefined ? {
+        macd: macdVal,
+        signal: macdSig,
+        histogram: macdHist,
+      } : undefined,
+      movingAverages: {
+        ma5: raw.ma5,
+        ma20: raw.ma20,
+        ma60: raw.ma60,
+        ma120: raw.ma120,
+      },
+      bollingerBands: raw.bollingerUpper !== undefined ? {
+        upper: raw.bollingerUpper,
+        middle: raw.bollingerMiddle,
+        lower: raw.bollingerLower,
+      } : undefined,
+      volatility: {
+        daily: raw.volatilityDaily,
+        annual: raw.volatilityAnnual,
+        sharpeRatio: raw.sharpeRatio,
+        maxDrawdown: raw.maxDrawdown,
+        beta: raw.beta,
+      },
+      signal,
+      summary: `RSI ${rsi?.toFixed(1)} (${rsi > 70 ? '과매수' : rsi < 30 ? '과매도' : '중립'}), MACD 히스토그램 ${macdHist?.toFixed(0)}, 변동성(연간) ${raw.volatilityAnnual?.toFixed(1)}%`,
+    };
+
     res.json(successResponse(data));
   } catch (error) {
     const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
@@ -280,7 +379,33 @@ app.get('/api/stocks/:symbol/dcf', async (req, res) => {
 app.get('/api/stocks/:symbol/supply', async (req, res) => {
   try {
     const { symbol } = req.params;
-    const data = await getSupplyDemand(symbol);
+    const raw = await getSupplyDemand(symbol) as Record<string, number>;
+
+    const f5 = raw.foreign5d ?? 0;
+    const i5 = raw.institution5d ?? 0;
+    const net5 = f5 + i5;
+    const trend = net5 > 0 ? 'Buy' : net5 < 0 ? 'Sell' : 'Neutral';
+
+    const data = {
+      foreign: {
+        net5d: raw.foreign5d ?? 0,
+        net20d: raw.foreign20d ?? 0,
+        net60d: raw.foreign60d ?? 0,
+      },
+      institutional: {
+        net5d: raw.institution5d ?? 0,
+        net20d: raw.institution20d ?? 0,
+        net60d: raw.institution60d ?? 0,
+      },
+      individual: {
+        net5d: raw.individual5d ?? 0,
+        net20d: raw.individual20d ?? 0,
+        net60d: raw.individual60d ?? 0,
+      },
+      trend,
+      summary: `외국인 5일 순매수 ${(raw.foreign5d ?? 0).toLocaleString()}원, 기관 ${(raw.institution5d ?? 0).toLocaleString()}원, 개인 ${(raw.individual5d ?? 0).toLocaleString()}원`,
+    };
+
     res.json(successResponse(data));
   } catch (error) {
     const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
@@ -302,8 +427,26 @@ app.get('/api/stocks/:symbol/peers', async (req, res) => {
 app.get('/api/stocks/:symbol/analysis', async (req, res) => {
   try {
     const { symbol } = req.params;
-    const data = await analyzeEquity(symbol);
-    res.json(successResponse(data));
+    const raw = await analyzeEquity(symbol);
+
+    // MCP returns a markdown string; parse key values and wrap into structured format
+    if (typeof raw === 'string') {
+      const verdictMatch = raw.match(/투자의견[：:\s]*\*{0,2}([^\n*]+)\*{0,2}/);
+      const verdict = verdictMatch ? verdictMatch[1].trim() : undefined;
+      const upsideMatch = raw.match(/상승여력[：:\s]*([-\d.]+)%/);
+      const upside = upsideMatch ? parseFloat(upsideMatch[1]) : 0;
+      const score = Math.min(100, Math.max(0, Math.round(50 + upside)));
+
+      res.json(successResponse({
+        overallScore: score,
+        overallVerdict: verdict,
+        analyses: [],
+        summary: raw,
+      }));
+      return;
+    }
+
+    res.json(successResponse(raw));
   } catch (error) {
     const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
     res.status(statusCode).json(errorToResponse(error));
@@ -440,6 +583,7 @@ app.get('/api', (_req, res) => {
       },
       stocks: {
         'GET /api/stocks/search?q=...': 'Search stocks (MCP → Yahoo fallback)',
+        'GET /api/stocks/recommend?limit=10': 'Screened stock recommendations (ROE/PER/PBR/EPS criteria)',
         'GET /api/stocks': 'Get available symbols',
         'GET /api/stocks/:symbol': 'Get stock price',
         'GET /api/stocks/:symbol/chart': 'Real-time OHLCV chart data',
@@ -537,6 +681,7 @@ async function main() {
     analyzer: ${mcpStatus.analyzer.connected ? 'Connected' : 'Disconnected'}
 
   Stock Endpoints:
+    GET  /api/stocks/recommend          - Screened recommendations
     GET  /api/stocks/:symbol           - Stock price
     GET  /api/stocks/:symbol/technical - Technical analysis
     GET  /api/stocks/:symbol/financial - Financial data

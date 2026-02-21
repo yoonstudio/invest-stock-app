@@ -141,10 +141,28 @@ export function EquityAnalysis({ symbol }: EquityAnalysisProps) {
         </div>
       )}
 
+      {/* Summary text - rendered as preformatted markdown lines */}
       {data.summary && (
-        <p className="mt-4 text-sm text-gray-600 dark:text-gray-400 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-          {data.summary}
-        </p>
+        <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+          {data.summary.split('\n').map((line, i) => {
+            const trimmed = line.trim();
+            if (!trimmed) return <div key={i} className="h-2" />;
+            if (trimmed.startsWith('# ')) {
+              return <p key={i} className="text-base font-bold text-gray-900 dark:text-white mb-1">{trimmed.replace(/^#+\s*/, '')}</p>;
+            }
+            if (trimmed.startsWith('## ')) {
+              return <p key={i} className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-2 mb-1">{trimmed.replace(/^#+\s*/, '')}</p>;
+            }
+            const formatted = trimmed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            return (
+              <p
+                key={i}
+                className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: formatted }}
+              />
+            );
+          })}
+        </div>
       )}
     </Card>
   );

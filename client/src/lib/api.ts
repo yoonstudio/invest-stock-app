@@ -15,6 +15,8 @@ import {
   PeerComparison,
   EquityAnalysis,
   McpStatus,
+  RecommendedStock,
+  ScreeningCriteria,
 } from '@/types';
 
 // API Base URL - REST API server
@@ -194,6 +196,27 @@ export async function getMainExchangeRates(): Promise<ExchangeRate[]> {
 
 export async function getMarketIndices(): Promise<MarketIndex[]> {
   return fetchApi<MarketIndex[]>('/market/indices');
+}
+
+// ============================================================================
+// Stock Recommendation APIs
+// ============================================================================
+
+export async function getRecommendedStocks(
+  limit: number = 10,
+  criteria?: ScreeningCriteria,
+): Promise<RecommendedStock[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (criteria) {
+    params.set('roe',  String(criteria.roeMin));
+    params.set('per',  String(criteria.perRatioMax));
+    params.set('pbr',  String(criteria.pbrRatioMax));
+    params.set('eps',  String(criteria.epsMin));
+    params.set('moat', String(criteria.requireMoat));
+    if (criteria.countries.length > 0) params.set('countries', criteria.countries.join(','));
+    if (criteria.sectors.length > 0)   params.set('sectors',   criteria.sectors.join(','));
+  }
+  return fetchApi<RecommendedStock[]>(`/stocks/recommend?${params.toString()}`);
 }
 
 export default api;
