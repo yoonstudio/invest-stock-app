@@ -41,7 +41,9 @@ export function Providers({ children }: ProvidersProps) {
   const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    initializeStores().then(() => setDbReady(true));
+    initializeStores()
+      .catch(() => {}) // DB errors should not block the app
+      .finally(() => setDbReady(true));
   }, []);
 
   if (!dbReady) {
