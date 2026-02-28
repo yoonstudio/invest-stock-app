@@ -230,10 +230,16 @@ export const useSearchHistoryStore = create<SearchHistoryState>()((set, get) => 
 // Initialize all stores from Supabase
 // ============================================================================
 export async function initializeStores() {
-  await Promise.all([
-    useWatchlistStore.getState().loadFromDB(),
-    usePortfolioStore.getState().loadFromDB(),
-    useUIStore.getState().loadFromDB(),
-    useSearchHistoryStore.getState().loadFromDB(),
+  // 3-second hard timeout prevents a hanging Supabase connection from
+  // blocking the loading screen indefinitely.
+  const timeout = new Promise<void>(resolve => setTimeout(resolve, 3000));
+  await Promise.race([
+    Promise.allSettled([
+      useWatchlistStore.getState().loadFromDB(),
+      usePortfolioStore.getState().loadFromDB(),
+      useUIStore.getState().loadFromDB(),
+      useSearchHistoryStore.getState().loadFromDB(),
+    ]),
+    timeout,
   ]);
 }
